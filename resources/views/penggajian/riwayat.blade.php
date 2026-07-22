@@ -36,7 +36,7 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse($periodes as $periode)
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gray-50 {{ $currentPeriodeId && $periode['id'] == $currentPeriodeId ? 'bg-yellow-50 ring-2 ring-yellow-300' : '' }}">
                         <td class="px-4 py-2.5">
                             <div class="text-sm font-medium text-gray-800">{{ $periode['nama_periode'] }}</div>
                             <div class="text-xs text-gray-400">
@@ -57,11 +57,17 @@
                                    class="inline-flex items-center px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded text-xs font-medium hover:bg-blue-100 transition">
                                     Detail
                                 </a>
-                                <a href="{{ route('gaji.slip-pdf', $periode['id']) }}"
-                                   class="inline-flex items-center px-2.5 py-1.5 bg-gray-50 text-gray-700 rounded text-xs font-medium hover:bg-gray-100 transition">
+                                <a href="{{ route('gaji.slip-all', $periode['id']) }}"
+                                   class="inline-flex items-center px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded text-xs font-medium hover:bg-purple-100 transition">
                                     Slip
                                 </a>
+                                <a href="{{ route('gaji.slip-pdf', $periode['id']) }}"
+                                   class="inline-flex items-center px-2.5 py-1.5 bg-gray-50 text-gray-700 rounded text-xs font-medium hover:bg-gray-100 transition">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    PDF
+                                </a>
                                 <a href="{{ route('gaji.laporan-pdf', $periode['id']) }}"
+                                   data-no-turbo
                                    class="inline-flex items-center px-2.5 py-1.5 bg-green-50 text-green-700 rounded text-xs font-medium hover:bg-green-100 transition">
                                     Laporan
                                 </a>

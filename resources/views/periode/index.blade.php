@@ -452,8 +452,8 @@
             document.getElementById('editForm').action = `/periode/${periode.id}`;
             document.getElementById('edit_kode').value = periode.kode_periode;
             document.getElementById('edit_nama').value = periode.nama_periode;
-            document.getElementById('edit_tanggal_mulai').value = periode.tanggal_mulai.split(' ')[0];
-            document.getElementById('edit_tanggal_selesai').value = periode.tanggal_selesai.split(' ')[0];
+            document.getElementById('edit_tanggal_mulai').value = periode.tanggal_mulai.split('T')[0];
+            document.getElementById('edit_tanggal_selesai').value = periode.tanggal_selesai.split('T')[0];
             document.getElementById('edit_status').value = periode.status;
 
             const modal = document.getElementById('editModal');

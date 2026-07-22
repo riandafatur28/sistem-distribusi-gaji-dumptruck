@@ -180,7 +180,7 @@
             <tfoot>
                 <tr class="grand-total-row">
                     <td colspan="5" style="text-align:right;">GRAND TOTAL</td>
-                    <td>Rp {{ number_format($data['grand_total_all'], 0, ',', '.') }}</td>
+                    <td>Rp {{ number_format($data['grand_total'], 0, ',', '.') }}</td>
                 </tr>
             </tfoot>
         </table>

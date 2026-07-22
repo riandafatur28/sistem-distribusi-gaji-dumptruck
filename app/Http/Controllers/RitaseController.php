@@ -7,6 +7,7 @@ use App\Models\Ritase;
 use App\Models\Sopir;
 use App\Models\Tujuan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class RitaseController extends Controller
 {
@@ -15,9 +16,20 @@ class RitaseController extends Controller
         $search = $request->get('search', '');
         $filterPeriode = $request->get('periode', '');
         $filterSopir = $request->get('sopir', '');
+        $tglMulai = $request->get('tanggal_mulai', '');
+        $tglSelesai = $request->get('tanggal_selesai', '');
+        $partial = $request->get('partial', '');
 
-        $periodes = Periode::orderBy('id', 'asc')->get();
-        $sopirs = Sopir::where('status', 'aktif')->orderBy('id', 'asc')->get();
+        if (empty($filterPeriode) && !$tglMulai && !$tglSelesai) {
+            $today = now()->toDateString();
+            $default = Periode::where('tanggal_mulai', '<=', $today)
+                ->where('tanggal_selesai', '>=', $today)
+                ->first();
+            if ($default) $filterPeriode = (string) $default->id;
+        }
+
+        $periodes = Cache::remember('ritase_periodes', 300, fn() => Periode::orderBy('id', 'asc')->get());
+        $sopirs = Cache::remember('ritase_sopirs_aktif', 300, fn() => Sopir::where('status', 'aktif')->orderBy('id', 'asc')->get());
 
         $ritases = Ritase::with(['periode', 'sopir', 'tujuan'])
             ->when($filterPeriode, function ($query) use ($filterPeriode) {
@@ -26,18 +38,32 @@ class RitaseController extends Controller
             ->when($filterSopir, function ($query) use ($filterSopir) {
                 $query->where('kode_sopir', $filterSopir);
             })
+            ->when($tglMulai, function ($query) use ($tglMulai) {
+                $query->where('tanggal', '>=', $tglMulai);
+            })
+            ->when($tglSelesai, function ($query) use ($tglSelesai) {
+                $query->where('tanggal', '<=', $tglSelesai);
+            })
             ->when($search, function ($query) use ($search) {
-                $query->where('kode_ritase', 'like', "%{$search}%")
-                    ->orWhereHas('sopir', function ($q) use ($search) {
-                        $q->where('nama', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('tujuan', function ($q) use ($search) {
-                        $q->where('nama', 'like', "%{$search}%");
-                    });
+                $query->where(function ($q) use ($search) {
+                    $q->where('kode_ritase', 'like', "%{$search}%")
+                      ->orWhereHas('sopir', function ($sq) use ($search) {
+                          $sq->where('nama', 'like', "%{$search}%");
+                      })
+                      ->orWhereHas('tujuan', function ($sq) use ($search) {
+                          $sq->where('nama', 'like', "%{$search}%");
+                      });
+                });
             })
             ->orderBy('id', 'asc')
             ->paginate(15)
             ->withQueryString();
+
+        // Kalau partial request (live search via AJAX), kirim HTML tabel aja
+        if ($partial === '1') {
+            $html = view('ritase._table', compact('ritases', 'search'))->render();
+            return response()->json(['html' => $html]);
+        }
 
         $totalRitase = Ritase::count();
         $ritaseValid = Ritase::where('status', 'valid')->count();
@@ -51,6 +77,8 @@ class RitaseController extends Controller
             'search',
             'filterPeriode',
             'filterSopir',
+            'tglMulai',
+            'tglSelesai',
             'totalRitase',
             'ritaseValid',
             'ritasePending',
@@ -225,6 +253,199 @@ class RitaseController extends Controller
 
         // 🔥 Default: DT = 330.000
         return 330000;
+    }
+
+    public function bulkStore(Request $request)
+    {
+        $request->validate([
+            'periode_id' => 'required|exists:periodes,id',
+            'tanggal' => 'required|date',
+            'waktu' => 'required|in:pagi,malam',
+            'kabupaten' => 'required|in:Nganjuk,Kediri,Kota Kediri,Jombang,Lainnya',
+            'status' => 'required|in:valid,pending,gagal_produksi',
+            'daftar_sopir' => 'required|string',
+        ]);
+
+        // Muat semua alias tujuan
+        $tujuanAliases = \App\Models\TujuanAlias::pluck('canonical', 'alias');
+
+        // Ganti alias di depan nama, misal "cmm blitar kota" -> "kormuling blitar kota"
+        $resolveAlias = function ($nama) use ($tujuanAliases) {
+            $first = explode(' ', trim($nama), 2);
+            $kataDepan = strtolower($first[0]);
+            if ($tujuanAliases->has($kataDepan)) {
+                $sisa = $first[1] ?? '';
+                return trim($tujuanAliases[$kataDepan] . ' ' . $sisa);
+            }
+            return trim($nama);
+        };
+
+        // Cari/buat Tujuan berdasarkan nama (exact -> fuzzy -> create)
+        $findOrCreateTujuan = function ($namaTujuan) use ($resolveAlias) {
+            $nama = $resolveAlias(trim($namaTujuan));
+            $t = Tujuan::where('nama', $nama)->first();
+            if ($t) return $t;
+            // Fuzzy — huruf depan sama + jarak ≤ 1
+            $all = Tujuan::all(['id', 'nama']);
+            $bestDist = PHP_INT_MAX;
+            $best = null;
+            $lower = strtolower($nama);
+            $first = $lower[0] ?? '';
+            foreach ($all as $t) {
+                $tLower = strtolower($t->nama);
+                if (($tLower[0] ?? '') !== $first) continue;
+                $dist = levenshtein($lower, $tLower);
+                if ($dist <= 1 && $dist < $bestDist) {
+                    $bestDist = $dist;
+                    $best = $t;
+                }
+            }
+            if ($best) return $best;
+            return Tujuan::create(['nama' => $nama, 'status' => 'aktif']);
+        };
+
+        $lines = explode("\n", $request->daftar_sopir);
+        $sopirs = \App\Models\Sopir::where('status', 'aktif')->get()->keyBy('nama');
+        $sopirsLower = [];
+        foreach ($sopirs as $nama => $s) {
+            $sopirsLower[strtolower(trim($nama))] = $s;
+        }
+
+        $created = 0;
+        $errors = [];
+        $currentTujuan = null;
+        $currentGroup = '';
+        $parsedTanggal = $request->tanggal;
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+
+            // Skip jika cuma angka atau delimiter
+            if (preg_match('~^[\d\s\-_|\\/]+$~', $line)) continue;
+
+            // Parse tanggal dari baris pertama: "22 07 26 rabu" → 2026-07-22
+            if (preg_match('/^(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\s/', $line, $m)) {
+                $d = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+                $mo = str_pad($m[2], 2, '0', STR_PAD_LEFT);
+                $y = strlen($m[3]) === 2 ? '20'.$m[3] : $m[3];
+                if (checkdate((int)$mo, (int)$d, (int)$y)) {
+                    $parsedTanggal = "{$y}-{$mo}-{$d}";
+                }
+                continue;
+            }
+
+            // "Paket ..." -> set tujuan untuk sopir setelahnya
+            if (preg_match('/^Paket\s+(.+)$/i', $line, $m)) {
+                $currentGroup = trim($m[1]);
+                $currentTujuan = $findOrCreateTujuan($currentGroup);
+                continue;
+            }
+
+            // Try to extract sopir name from the line
+            $name = null;
+            $catatanTambahan = null;
+
+            // Numbered: "1. Riki" or "1.Riki"
+            if (preg_match('/^\s*\d+[\.\s]\s*(.+)$/', $line, $m)) {
+                $name = trim($m[1]);
+            } else {
+                // Plain line: first word = sopir, sisanya = catatan
+                $parts = explode(' ', $line, 2);
+                $name = $parts[0];
+                $catatanTambahan = $parts[1] ?? null;
+            }
+
+            if (!$name) continue;
+
+            // Normalize: remove extra spaces
+            $name = preg_replace('/\s+/', ' ', $name);
+
+            // Try to match sopir (case-insensitive)
+            $namaLower = strtolower(trim($name));
+            $sopir = $sopirsLower[$namaLower] ?? null;
+
+            // Fuzzy — huruf depan sama + jarak ≤ 1
+            if (!$sopir) {
+                $bestDist = PHP_INT_MAX;
+                $bestKey = null;
+                $first = $namaLower[0] ?? '';
+                foreach ($sopirsLower as $key => $s) {
+                    if (($key[0] ?? '') !== $first) continue;
+                    $dist = levenshtein($namaLower, $key);
+                    if ($dist <= 1 && $dist < $bestDist) {
+                        $bestDist = $dist;
+                        $bestKey = $key;
+                    }
+                }
+                if ($bestKey !== null) {
+                    $sopir = $sopirsLower[$bestKey];
+                }
+            }
+
+            if (!$sopir) {
+                // Auto-create sopir baru
+                $sopir = \App\Models\Sopir::create([
+                    'nama' => trim($name),
+                    'status' => 'aktif',
+                ]);
+                // Refresh cache
+                $sopirsLower[strtolower(trim($sopir->nama))] = $sopir;
+            }
+
+            // Tentukan tujuan untuk sopir ini
+            $tujuanUntukSopir = $currentTujuan;
+            // Standalone line (belum ada Paket) -> catatanTambahan jadi tujuan
+            if (!$tujuanUntukSopir && $catatanTambahan) {
+                $tujuanUntukSopir = $findOrCreateTujuan($catatanTambahan);
+            }
+            if (!$tujuanUntukSopir) {
+                $errors[] = "Sopir '{$name}' tidak punya tujuan. Tambahkan 'Paket ...'.";
+                continue;
+            }
+
+            // Build catatan (jangan duplikat tujuan yg udah jadi kode_tujuan)
+            $catatanParts = [];
+            if ($catatanTambahan && !$currentTujuan) {
+                $catatanParts[] = $catatanTambahan;
+            }
+
+            // DT
+            $dtValue = $this->hitungDT(new Request([
+                'kode_sopir' => $sopir->kode_sopir,
+                'tanggal' => $parsedTanggal,
+                'kabupaten' => $request->kabupaten,
+                'waktu' => $request->waktu,
+                'status' => $request->status,
+            ]), null);
+
+            Ritase::create([
+                'periode_id' => $request->periode_id,
+                'kode_sopir' => $sopir->kode_sopir,
+                'kode_tujuan' => $tujuanUntukSopir->kode_tujuan,
+                'tanggal' => $parsedTanggal,
+                'waktu' => $request->waktu,
+                'kabupaten' => $request->kabupaten,
+                'status' => $request->status,
+                'dt' => $dtValue,
+                'upah_sopir' => 0,
+                'nominal_kompensasi' => 0,
+                'catatan' => !empty($catatanParts) ? implode('; ', $catatanParts) : ($currentGroup ?: null),
+            ]);
+
+            $created++;
+        }
+
+        $msg = "✅ {$created} ritase berhasil ditambahkan!";
+        if (!empty($errors)) {
+            $msg .= ' ' . implode(' ', array_slice($errors, 0, 10));
+            if (count($errors) > 10) {
+                $msg .= ' Dan ' . (count($errors) - 10) . ' error lainnya.';
+            }
+            return redirect()->route('ritase.index')->with('error', $msg);
+        }
+
+        return redirect()->route('ritase.index')->with('success', $msg);
     }
 
     public function cekAturanSewaDT(Request $request)

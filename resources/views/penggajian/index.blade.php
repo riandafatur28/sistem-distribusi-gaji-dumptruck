@@ -52,8 +52,8 @@
                     <select name="periode_id" id="pilih_periode" class="w-full md:w-1/2 px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
                         <option value="">Pilih Periode</option>
                         @foreach($periodesForDropdown ?? [] as $periode)
-                            <option value="{{ $periode->id }}" {{ isset($periodeId) && $periodeId == $periode->id ? 'selected' : '' }}>
-                                {{ $periode->nama_periode }}
+                            <option value="{{ $periode->id }}" {{ isset($periodeId) && $periodeId == $periode->id ? 'selected' : '' }} {{ $periode->status == 'selesai' ? 'disabled' : '' }}>
+                                {{ $periode->nama_periode }} {{ $periode->status == 'selesai' ? '(Selesai)' : '' }}
                             </option>
                         @endforeach
                     </select>
@@ -224,6 +224,7 @@
                                     Edit
                                 </a>
                                 <a href="{{ route('gaji.slip-pdf', $periode['id']) }}"
+                                   data-no-turbo
                                    class="text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded hover:bg-gray-50 font-medium"
                                    title="Download Slip PDF">
                                     Slip PDF
@@ -295,22 +296,14 @@
             }
 
             document.getElementById('pilih_periode').addEventListener('change', function() {
-                periodeId = this.value;
-                if (periodeId) {
-                    loadGajiData(periodeId);
-                    const downloadBtn = document.getElementById('downloadSlipBtn');
-                    downloadBtn.href = '{{ url("/gaji/slip-pdf") }}/' + periodeId;
-                    downloadBtn.classList.remove('hidden');
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('periode', periodeId);
-                    window.history.pushState({}, '', url);
-                } else {
-                    document.getElementById('tabelGajiContainer').classList.add('hidden');
-                    document.getElementById('downloadSlipBtn').classList.add('hidden');
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete('periode');
-                    window.history.pushState({}, '', url);
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption && selectedOption.disabled) {
+                    this.value = '';
+                    return;
                 }
+                const url = new URL(window.location.href);
+                url.searchParams.set('periode', this.value);
+                window.location.href = url.toString();
             });
 
             document.querySelectorAll('input[data-field="bbm_per_rit"], input[data-field="upah_per_rit"]').forEach(function(input) {

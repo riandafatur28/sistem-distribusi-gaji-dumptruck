@@ -18,42 +18,42 @@
         }
 
         .slip-header {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
             text-align: center;
-            padding: 8px 0;
+            padding: 10px 0;
             border-bottom: 2px solid #000;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 16px;
             min-width: 800px;
         }
 
         th {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 8px 10px;
             text-align: center;
             font-weight: 700;
-            font-size: 13px;
+            font-size: 15px;
             background: white;
         }
 
         td {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 8px 10px;
             text-align: center;
-            font-size: 15px;
+            font-size: 17px;
             background: white;
         }
 
         .text-right { text-align: right; }
         .text-left { text-align: left; }
         .font-bold { font-weight: 700; }
-        .label-tujuan-nama { font-size: 17px; font-weight: 700; }
+        .label-tujuan-nama { font-size: 19px; font-weight: 700; }
 
         .page-break {
             page-break-after: always;
@@ -198,7 +198,7 @@
                                 @php
                                     $tujuanLabel = $d['is_gagal'] ? 'Gagal Produksi' : $d['tujuan'];
                                 @endphp
-                                <td class="text-left" style="font-size: 15px;">{{ $tujuanLabel }}</td>
+                                <td class="text-left" style="font-size: 17px;">{{ $tujuanLabel }}</td>
                             @endforeach
                             <td></td>
                             <td></td>

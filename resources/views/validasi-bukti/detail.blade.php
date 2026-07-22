@@ -27,7 +27,7 @@
                     <p class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Foto Bukti</p>
                 </div>
                 <div class="p-4">
-                    <img src="/storage/{{ $item->foto }}" class="w-full rounded border border-gray-200">
+                    <img src="/storage/{{ $item->foto }}?t={{ time() }}" class="w-full rounded border border-gray-200">
                 </div>
             </div>
 

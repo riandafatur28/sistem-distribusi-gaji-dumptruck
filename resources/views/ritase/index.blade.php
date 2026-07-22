@@ -141,7 +141,7 @@
                         <select id="status" name="status" required onchange="toggleKompensasiField()"
                             class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
                             <option value="pending">Pending</option>
-                            <option value="valid">Valid</option>
+                            <option value="valid">Selesai</option>
                             <option value="gagal_produksi">Gagal Produksi</option>
                         </select>
                     </div>
@@ -204,31 +204,124 @@
     </div>
 
     {{-- ============================================================ --}}
-    {{-- TABEL DATA RITASE --}}
+    {{-- BULK INPUT MASSAL --}}
+    {{-- ============================================================ --}}
+    <div class="bg-white border border-gray-200 rounded mb-6 overflow-hidden">
+        <div class="bg-gray-50 border-b border-gray-200 px-5 py-3 flex items-center justify-between cursor-pointer" onclick="toggleBulk()">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wider">
+                Input Massal
+                <span class="font-normal text-gray-400 text-xs ml-2">Paste data ritase untuk banyak sopir sekaligus</span>
+            </h3>
+            <svg id="bulkChevron" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </div>
+        <div id="bulkContent" class="hidden px-5 py-4">
+            <form id="formBulkRitase" action="{{ route('ritase.bulk') }}" method="POST">
+                @csrf
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Periode <span class="text-red-500">*</span></label>
+                        <select name="periode_id" required class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
+                            <option value="">-- Pilih Periode --</option>
+                            @foreach($periodes as $periode)
+                                <option value="{{ $periode->id }}">{{ $periode->nama_periode }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Tanggal <span class="text-red-500">*</span></label>
+                        <input type="date" name="tanggal" required class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
+                        <p class="text-xs text-gray-400 mt-0.5">Bisa diisi otomatis dari baris pertama teks</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Waktu <span class="text-red-500">*</span></label>
+                        <select name="waktu" required class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
+                            <option value="pagi">Pagi</option>
+                            <option value="malam">Malam</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Kabupaten <span class="text-red-500">*</span></label>
+                        <select name="kabupaten" required class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
+                            <option value="">-- Pilih Kabupaten --</option>
+                            <option value="Nganjuk">Nganjuk</option>
+                            <option value="Kediri">Kediri</option>
+                            <option value="Kota Kediri">Kota Kediri</option>
+                            <option value="Jombang">Jombang</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Status <span class="text-red-500">*</span></label>
+                        <select name="status" required class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
+                            <option value="pending">Pending</option>
+                            <option value="valid">Selesai</option>
+                            <option value="gagal_produksi">Gagal Produksi</option>
+                        </select>
+                    </div>
+                </div>
+
+                {{-- Tujuan nggak perlu field — otomatis dari baris Paket ... --}}
+
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">
+                        Daftar Sopir <span class="text-red-500">*</span>
+                        <span class="font-normal text-gray-400 text-xs ml-2">
+                            Format: <code class="bg-gray-100 px-1 rounded">1. Nama</code> atau <code class="bg-gray-100 px-1 rounded">Nama</code> per baris. <code class="bg-gray-100 px-1 rounded">Paket ...</code> untuk grup.
+                        </span>
+                    </label>
+                    <textarea name="daftar_sopir" rows="12" required
+                        class="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white font-mono"
+                        placeholder="Contoh:&#10;22 07 26 rabu&#10;Bondan patching pare kota&#10;Paket cmm blitar kota&#10;1. Riki&#10;2. Kola&#10;3. Firsa&#10;&#10;Paket watualang ngawi&#10;1. Gun&#10;2. Anjar&#10;3. Wilujeng"></textarea>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-500" id="bulkCount">Belum ada sopir terdeteksi</p>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="prakiraBulk()"
+                            class="border border-gray-300 rounded text-sm font-medium text-gray-700 px-4 py-2.5 hover:bg-gray-50 transition">
+                            Prakira
+                        </button>
+                        <button type="submit"
+                            class="bg-[#1a1a2e] text-white rounded text-sm font-semibold px-5 py-2.5 hover:bg-[#2d2d44] transition">
+                            Input Massal
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ============================================================ --}}
+    {{-- TABEL DATA RITASE + FILTER LANGSUNG --}}
     {{-- ============================================================ --}}
     <div class="bg-white border border-gray-200 rounded overflow-hidden">
         <div class="border-b border-gray-200 px-5 py-4">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                     <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Daftar Ritase</h3>
-                    <p class="text-xs text-gray-400 mt-0.5">Menampilkan {{ $ritases->firstItem() ?? 0 }} - {{ $ritases->lastItem() ?? 0 }} dari {{ $ritases->total() }} data</p>
+                    <p class="text-xs text-gray-400 mt-0.5" id="tableInfo">Memuat data...</p>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <form method="GET" action="{{ route('ritase.index') }}" class="flex gap-2">
-                        <select name="periode" onchange="this.form.submit()" class="px-3 py-2 border border-gray-200 rounded text-sm bg-white">
-                            <option value="">Semua Periode</option>
-                            @foreach($periodes as $periode)
-                                <option value="{{ $periode->id }}" {{ $filterPeriode == $periode->id ? 'selected' : '' }}>{{ $periode->nama_periode }}</option>
-                            @endforeach
-                        </select>
-                        <select name="sopir" onchange="this.form.submit()" class="px-3 py-2 border border-gray-200 rounded text-sm bg-white">
-                            <option value="">Semua Sopir</option>
-                            @foreach($sopirs as $sopir)
-                                <option value="{{ $sopir->kode_sopir }}" {{ $filterSopir == $sopir->kode_sopir ? 'selected' : '' }}>{{ $sopir->nama }}</option>
-                            @endforeach
-                        </select>
-                    </form>
-                    <div class="relative w-full sm:w-64">
+                <div class="flex flex-col sm:flex-row gap-3" id="filterBar">
+                    <select name="periode" onchange="filterChanged()" class="px-3 py-2 border border-gray-200 rounded text-sm bg-white">
+                        <option value="">Semua Periode</option>
+                        @foreach($periodes as $periode)
+                            <option value="{{ $periode->id }}" {{ $filterPeriode == $periode->id ? 'selected' : '' }}>{{ $periode->nama_periode }}</option>
+                        @endforeach
+                    </select>
+                    <select name="sopir" onchange="filterChanged()" class="px-3 py-2 border border-gray-200 rounded text-sm bg-white">
+                        <option value="">Semua Sopir</option>
+                        @foreach($sopirs as $sopir)
+                            <option value="{{ $sopir->kode_sopir }}" {{ $filterSopir == $sopir->kode_sopir ? 'selected' : '' }}>{{ $sopir->nama }}</option>
+                        @endforeach
+                    </select>
+                    <input type="date" name="tanggal_mulai" value="{{ $tglMulai }}" onchange="filterChanged()"
+                        class="px-3 py-2 border border-gray-200 rounded text-sm bg-white" placeholder="Tgl Mulai">
+                    <input type="date" name="tanggal_selesai" value="{{ $tglSelesai }}" onchange="filterChanged()"
+                        class="px-3 py-2 border border-gray-200 rounded text-sm bg-white" placeholder="Tgl Selesai">
+                    <div class="relative w-full sm:w-56">
                         <input type="text" id="liveSearch" value="{{ $search }}"
                             class="w-full pl-10 pr-10 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white"
                             placeholder="Cari kode, sopir, tujuan..." autocomplete="off">
@@ -245,150 +338,9 @@
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            @if($ritases->count() > 0)
-                <table class="w-full">
-                    <thead class="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kode</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sopir</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tujuan</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanggal</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Waktu</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kabupaten</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">DT</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Kompensasi</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @foreach($ritases as $ritase)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium">
-                                        {{ $ritase->kode_ritase }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center space-x-2">
-                                        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                            <span class="text-gray-700 font-bold text-xs">
-                                                {{ $ritase->sopir ? substr($ritase->sopir->nama, 0, 1) : '?' }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-900">
-                                                {{ $ritase->sopir ? $ritase->sopir->nama : 'Sopir tidak ditemukan' }}
-                                            </p>
-                                            <p class="text-xs text-gray-500">
-                                                {{ $ritase->sopir ? $ritase->sopir->kode_sopir : '-' }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <p class="text-sm font-medium text-gray-900">
-                                        {{ $ritase->tujuan ? $ritase->tujuan->nama : 'Tujuan tidak ditemukan' }}
-                                    </p>
-                                    <p class="text-xs text-gray-500">
-                                        {{ $ritase->tujuan ? $ritase->tujuan->kode_tujuan : '-' }}
-                                    </p>
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-600">{{ $ritase->tanggal->format('d M Y') }}</td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full {{ $ritase->waktu == 'pagi' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700' }} text-xs font-semibold">
-                                        {{ ucfirst($ritase->waktu) }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-600">{{ $ritase->kabupaten }}</td>
-                                <td class="px-4 py-3">
-                                    @if($ritase->status == 'valid')
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Valid</span>
-                                    @elseif($ritase->status == 'pending')
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold">Pending</span>
-                                    @else
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Gagal</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-right font-semibold text-gray-800">
-                                    Rp {{ number_format($ritase->dt ?? 0, 0, ',', '.') }}
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    @if($ritase->status == 'gagal_produksi' && $ritase->nominal_kompensasi > 0)
-                                        <span class="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-800 text-xs font-semibold">
-                                            Rp {{ number_format($ritase->nominal_kompensasi, 0, ',', '.') }}
-                                        </span>
-                                    @else
-                                        <span class="text-xs text-gray-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center justify-center space-x-1">
-                                        <button onclick='openEditModal(@json($ritase))'
-                                            class="p-1.5 text-gray-500 border border-gray-200 rounded hover:text-gray-700 hover:bg-gray-50" title="Edit">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                            </svg>
-                                        </button>
-                                        <form action="{{ route('ritase.destroy', $ritase->id) }}"
-                                              method="POST"
-                                              onsubmit="return confirm('Yakin ingin menghapus ritase {{ $ritase->kode_ritase }}?\n\nData yang dihapus tidak dapat dikembalikan!')"
-                                              class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="p-1.5 text-red-500 border border-gray-200 rounded hover:text-red-700 hover:bg-red-50"
-                                                title="Hapus">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @else
-                <div class="text-center py-16">
-                    <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                    </svg>
-                    <p class="text-gray-500 font-semibold">Belum ada data ritase</p>
-                    <p class="text-gray-400 text-sm mt-1">Tambahkan ritase pertama Anda menggunakan form di atas.</p>
-                </div>
-            @endif
+        <div class="overflow-x-auto" id="tableContainer">
+            @include('ritase._table', ['ritases' => $ritases, 'search' => $search ?? ''])
         </div>
-
-        {{-- Pagination --}}
-        @if($ritases->hasPages())
-            <div class="px-5 py-4 border-t border-gray-200 bg-gray-50">
-                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p class="text-sm text-gray-600">Halaman {{ $ritases->currentPage() }} dari {{ $ritases->lastPage() }}</p>
-                    <div class="flex items-center space-x-2">
-                        @if($ritases->onFirstPage())
-                            <span class="px-3 py-2 text-sm text-gray-400 bg-white border border-gray-200 rounded cursor-not-allowed">Sebelumnya</span>
-                        @else
-                            <a href="{{ $ritases->previousPageUrl() }}" class="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded">Sebelumnya</a>
-                        @endif
-                        @foreach($ritases->getUrlRange(1, $ritases->lastPage()) as $page => $url)
-                            @if($page == $ritases->currentPage())
-                                <span class="px-3 py-2 text-sm font-bold text-white bg-[#1a1a2e] border border-[#1a1a2e] rounded">{{ $page }}</span>
-                            @else
-                                <a href="{{ $url }}" class="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded">{{ $page }}</a>
-                            @endif
-                        @endforeach
-                        @if($ritases->hasMorePages())
-                            <a href="{{ $ritases->nextPageUrl() }}" class="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded">Selanjutnya</a>
-                        @else
-                            <span class="px-3 py-2 text-sm text-gray-400 bg-white border border-gray-200 rounded cursor-not-allowed">Selanjutnya</span>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        @endif
     </div>
 
     {{-- ============================================================ --}}
@@ -462,7 +414,7 @@
                             <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Status <span class="text-red-500">*</span></label>
                             <select id="edit_status" name="status" required onchange="toggleEditKompensasiField()" class="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-[#1a1a2e] focus:ring-1 focus:ring-[#1a1a2e]/20 transition bg-white">
                                 <option value="pending">Pending</option>
-                                <option value="valid">Valid</option>
+                                <option value="valid">Selesai</option>
                                 <option value="gagal_produksi">Gagal Produksi</option>
                             </select>
                         </div>
@@ -756,6 +708,67 @@
             setTimeout(hitungDT, 100);
         }
 
+        // ===== AUTO CALCULATE DT (EDIT MODAL) =====
+        function autoCalculateEditDT() {
+            const kabupaten = document.getElementById('edit_kabupaten');
+            const waktu = document.getElementById('edit_waktu');
+            const status = document.getElementById('edit_status');
+            const kompensasi = document.getElementById('edit_nominal_kompensasi');
+            const dtInput = document.getElementById('edit_dt');
+            const kodeSopir = document.getElementById('edit_kode_sopir');
+            const tanggal = document.getElementById('edit_tanggal');
+
+            function hitungEditDT() {
+                const kab = kabupaten.value;
+                const waktuVal = waktu.value;
+                const statusVal = status.value;
+                const sopir = kodeSopir.value;
+                const tgl = tanggal.value;
+
+                // Jika status Gagal Produksi - DT = 0
+                if (statusVal === 'gagal_produksi') {
+                    dtInput.value = 0;
+                    return;
+                }
+
+                // Jika sopir dan tanggal dipilih, cek rit lain
+                if (sopir && tgl && kab && waktuVal) {
+                    fetch('{{ route("ritase.cek.aturan") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            kode_sopir: sopir,
+                            tanggal: tgl,
+                            waktu: waktuVal,
+                            kabupaten: kab,
+                            status: statusVal,
+                            nominal_kompensasi: parseFloat(kompensasi.value) || 0
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        dtInput.value = data.sewa_dt || 0;
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        dtInput.value = 0;
+                    });
+                } else {
+                    dtInput.value = 0;
+                }
+            }
+
+            // Event listeners
+            [kabupaten, waktu, status, kompensasi, kodeSopir, tanggal].forEach(el => {
+                if (el) {
+                    el.addEventListener('change', hitungEditDT);
+                }
+            });
+        }
+
         // ===== TOGGLE KOMPENSASI FIELD =====
         function toggleKompensasiField() {
             const status = document.getElementById('status').value;
@@ -782,40 +795,84 @@
             }
         }
 
-        // ===== LIVE SEARCH =====
+        // ===== LIVE SEARCH + FILTER VIA AJAX =====
+        let debounceTimer;
+        let fetchAbort = null;
+
+        function filterChanged() {
+            loadTable();
+        }
+
+        function loadTable() {
+            if (fetchAbort) fetchAbort.abort();
+            fetchAbort = new AbortController();
+
+            const params = new URLSearchParams();
+
+            document.querySelectorAll('#filterBar select, #filterBar input').forEach(el => {
+                if (el.name && el.value) params.set(el.name, el.value);
+            });
+            const sq = document.getElementById('liveSearch').value.trim();
+            if (sq) params.set('search', sq);
+            params.set('partial', '1');
+
+            const container = document.getElementById('tableContainer');
+            container.innerHTML = '<div class="text-center py-12 text-gray-400">Memuat...</div>';
+
+            fetch('{{ route("ritase.index") }}?' + params.toString(), {
+                signal: fetchAbort.signal,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                container.innerHTML = data.html;
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') {
+                    container.innerHTML = '<div class="text-center py-12 text-red-500">Gagal memuat data</div>';
+                }
+            });
+        }
+
         (function() {
             const searchInput = document.getElementById('liveSearch');
             const clearSearch = document.getElementById('clearSearch');
-            let debounceTimer;
 
             function debounce(func, wait) {
-                return function(...args) {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => func.apply(this, args), wait);
+                let t;
+                return (...args) => {
+                    clearTimeout(t);
+                    t = setTimeout(() => func(...args), wait);
                 };
             }
 
-            function performSearch() {
-                const query = searchInput.value.trim();
-                const url = new URL(window.location.href);
-                if (query) {
-                    url.searchParams.set('search', query);
-                    clearSearch.classList.remove('hidden');
-                } else {
-                    url.searchParams.delete('search');
-                    clearSearch.classList.add('hidden');
-                }
-                window.location.href = url.toString();
-            }
-
-            searchInput.addEventListener('input', debounce(performSearch, 500));
+            searchInput.addEventListener('input', debounce(loadTable, 300));
             clearSearch.addEventListener('click', function() {
                 searchInput.value = '';
-                performSearch();
+                clearSearch.classList.add('hidden');
+                loadTable();
                 searchInput.focus();
             });
             if (searchInput.value) clearSearch.classList.remove('hidden');
         })();
+
+        // Pagination via AJAX
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('#tableContainer a[href]');
+            if (!link) return;
+            const href = link.getAttribute('href');
+            if (!href || href === '#') return;
+            e.preventDefault();
+            const params = new URLSearchParams(href.includes('?') ? href.split('?')[1] : '');
+            params.set('partial', '1');
+            document.getElementById('tableContainer').innerHTML = '<div class="text-center py-12 text-gray-400">Memuat...</div>';
+            fetch(href.split('?')[0] + '?' + params.toString(), {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => { document.getElementById('tableContainer').innerHTML = data.html; })
+            .catch(() => {});
+        });
 
         // ===== EDIT RITASE =====
         function openEditModal(ritase) {
@@ -910,6 +967,85 @@
                 closeTambahModal();
                 form.submit();
             }
+        }
+
+        
+        // ===== BULK INPUT MASSAL =====
+        function toggleBulk() {
+            const content = document.getElementById('bulkContent');
+            const chevron = document.getElementById('bulkChevron');
+            content.classList.toggle('hidden');
+            chevron.classList.toggle('rotate-180');
+        }
+
+                function prakiraBulk() {
+            const textarea = document.querySelector('[name=daftar_sopir]');
+            const countEl = document.getElementById('bulkCount');
+            const dateInput = document.querySelector('[name=tanggal]');
+            const text = textarea.value;
+            if (!text.trim()) {
+                countEl.textContent = 'Teks kosong.';
+                return;
+            }
+
+            const lines = text.split('\n');
+            let sopirCount = 0;
+            let groupCount = 0;
+            let parsedDate = '';
+            let sopirNames = [];
+
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                if (/^[\d\s\-\_\|\/]+$/.test(line)) return;
+
+                const dateMatch = line.match(/^(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\s/);
+                if (dateMatch) {
+                    let d = dateMatch[1].padStart(2, '0');
+                    let m = dateMatch[2].padStart(2, '0');
+                    let y = dateMatch[3];
+                    if (y.length === 2) y = '20' + y;
+                    parsedDate = y + '-' + m + '-' + d;
+                    return;
+                }
+
+                if (/^Paket\s/i.test(line)) {
+                    groupCount++;
+                    return;
+                }
+
+                const numMatch = line.match(/^\s*\d+[\.\s]\s*(.+)$/);
+                if (numMatch) {
+                    sopirCount++;
+                    sopirNames.push(numMatch[1].trim());
+                    return;
+                }
+
+                if (line && !/^\d+$/.test(line)) {
+                    sopirCount++;
+                    sopirNames.push(line);
+                }
+            });
+
+            if (parsedDate && dateInput) {
+                dateInput.value = parsedDate;
+            }
+
+            let msg = '';
+            if (parsedDate) msg += '\ud83d\udcc5 Tanggal: ' + parsedDate + '\n';
+            if (groupCount > 0) msg += '\ud83d\udce6 Grup: ' + groupCount + ' paket\n';
+            msg += '\ud83d\udccb Sopir: ' + sopirCount + ' orang\n\n';
+            sopirNames.slice(0, 25).forEach((n, i) => {
+                msg += (i+1) + '. ' + n + '\n';
+            });
+            if (sopirNames.length > 25) {
+                msg += '... dan ' + (sopirNames.length - 25) + ' lainnya\n';
+            }
+            msg += '\n\u26a0\ufe0f Pastikan semua sopir terdaftar di Kelola Sopir.';
+            if (parsedDate) msg += '\n\u2705 Tanggal sudah otomatis terisi.';
+
+            countEl.textContent = '\ud83d\udcca ' + sopirCount + ' sopir, ' + groupCount + ' grup' + (parsedDate ? ', tanggal terisi' : '');
+            alert(msg);
         }
 
         // Tutup modal saat klik overlay

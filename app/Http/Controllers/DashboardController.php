@@ -8,6 +8,7 @@ use App\Models\Sopir;
 use App\Models\ValidasiBukti;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -16,9 +17,12 @@ class DashboardController extends Controller
         $user = Auth::user();
         $filter = $request->get('periode', 'semua');
 
-        $totalSopir = Sopir::count();
-        $sopirAktif = Sopir::where('status', 'aktif')->count();
-        $sopirNonaktif = Sopir::where('status', 'nonaktif')->count();
+        $cacheTTL = 300; // 5 min
+
+        // Sopir counts (rarely change)
+        $totalSopir = Cache::remember('dash_total_sopir', $cacheTTL, fn() => Sopir::count());
+        $sopirAktif = Cache::remember('dash_sopir_aktif', $cacheTTL, fn() => Sopir::where('status', 'aktif')->count());
+        $sopirNonaktif = Cache::remember('dash_sopir_nonaktif', $cacheTTL, fn() => Sopir::where('status', 'nonaktif')->count());
 
         $ritaseQuery = Ritase::query();
         $gajiQuery = Penggajian::query();
@@ -82,7 +86,7 @@ class DashboardController extends Controller
             });
         }
 
-        // Optimasi: hitung semua status ritase dalam 1 query
+        // All ritase counts in 1 query
         $ritaseCounts = (clone $ritaseQuery)
             ->selectRaw("COUNT(*) as total")
             ->selectRaw("SUM(CASE WHEN status = 'valid' THEN 1 ELSE 0 END) as valid")
@@ -95,9 +99,9 @@ class DashboardController extends Controller
         $ritasePending = (int) ($ritaseCounts->pending ?? 0);
         $ritaseGagal = (int) ($ritaseCounts->gagal ?? 0);
 
-        $totalGaji = (clone $gajiQuery)->sum('total') ?? 0;
+        $totalGaji = Cache::remember('dash_total_gaji_' . md5($startDate ?? 'all'), 120, fn() => (clone $gajiQuery)->sum('total') ?? 0);
 
-        // Optimasi: hitung semua status validasi dalam 1 query
+        // All validasi counts in 1 query
         $validasiCounts = ValidasiBukti::selectRaw("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending")
             ->selectRaw("SUM(CASE WHEN status = 'disetujui' THEN 1 ELSE 0 END) as disetujui")
             ->selectRaw("SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END) as ditolak")
@@ -108,32 +112,19 @@ class DashboardController extends Controller
         $validasiDitolak = (int) ($validasiCounts->ditolak ?? 0);
         $validasiHariIni = ValidasiBukti::whereDate('created_at', today())->count();
 
-        // Aktivitas terbaru (pindah dari view ke controller)
-        $recentRitase = \App\Models\Ritase::with(['sopir:id,kode_sopir,nama', 'tujuan:id,kode_tujuan,nama']);
+        // Recent activites
+        $recentRitase = Ritase::with(['sopir:id,kode_sopir,nama', 'tujuan:id,kode_tujuan,nama']);
         if ($startDate) {
             $recentRitase->whereBetween('tanggal', [$startDate, $endDate]);
         }
         $recentRitase = $recentRitase->latest()->limit(6)->get();
 
         return view('dashboard.index', compact(
-            'user',
-            'totalSopir',
-            'sopirAktif',
-            'sopirNonaktif',
-            'totalRitase',
-            'ritasePending',
-            'ritaseValid',
-            'ritaseGagal',
+            'user', 'totalSopir', 'sopirAktif', 'sopirNonaktif',
+            'totalRitase', 'ritasePending', 'ritaseValid', 'ritaseGagal',
             'totalGaji',
-            'validasiPending',
-            'validasiDisetujui',
-            'validasiDitolak',
-            'validasiHariIni',
-            'recentRitase',
-            'filter',
-            'periodLabel',
-            'startDate',
-            'endDate'
+            'validasiPending', 'validasiDisetujui', 'validasiDitolak', 'validasiHariIni',
+            'recentRitase', 'filter', 'periodLabel', 'startDate', 'endDate'
         ));
     }
 }

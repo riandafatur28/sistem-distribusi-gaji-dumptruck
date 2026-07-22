@@ -32,10 +32,10 @@
         }
 
         .block-header {
-            font-size: 11pt;
+            font-size: 14pt;
             font-weight: 700;
             text-align: center;
-            padding: 1.5mm 3mm;
+            padding: 2mm 3mm;
             border-bottom: 1.5px solid #000;
             background: white;
         }
@@ -48,26 +48,26 @@
 
         .slip-block th {
             border: 1px solid #000;
-            padding: 1mm 1.5mm;
+            padding: 1.5mm 2mm;
             text-align: center;
             font-weight: 700;
-            font-size: 8pt;
+            font-size: 10pt;
             background: white;
             vertical-align: middle;
         }
 
         .slip-block td {
             border: 1px solid #000;
-            padding: 1mm 1.5mm;
+            padding: 1.5mm 2mm;
             text-align: center;
-            font-size: 9pt;
+            font-size: 11pt;
             background: white;
             vertical-align: middle;
         }
 
         .slip-block td.label {
             font-weight: 700;
-            font-size: 10pt;
+            font-size: 12pt;
             text-align: left;
             width: 22mm;
         }
@@ -77,10 +77,10 @@
         .font-bold { font-weight: 700; }
 
         .block-footer {
-            font-size: 9pt;
+            font-size: 11pt;
             font-weight: 700;
             text-align: right;
-            padding: 1mm 2.5mm;
+            padding: 1.5mm 2.5mm;
             border-top: 1.5px solid #000;
         }
     </style>

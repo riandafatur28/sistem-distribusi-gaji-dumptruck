@@ -68,6 +68,7 @@ Route::middleware('auth')->group(function () {
     // Kelola Ritase
     Route::get('/ritase', [RitaseController::class, 'index'])->name('ritase.index');
     Route::post('/ritase', [RitaseController::class, 'store'])->name('ritase.store');
+    Route::post('/ritase/bulk', [RitaseController::class, 'bulkStore'])->name('ritase.bulk');
     Route::put('/ritase/{id}', [RitaseController::class, 'update'])->name('ritase.update');
     Route::delete('/ritase/{id}', [RitaseController::class, 'destroy'])->name('ritase.destroy');
 
@@ -86,6 +87,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/gaji', [PenggajianController::class, 'store'])->name('gaji.store');
     Route::delete('/gaji/{id}', [PenggajianController::class, 'destroy'])->name('gaji.destroy');
     Route::get('/gaji/slip/{periode_id}/{kode_sopir}', [PenggajianController::class, 'slipGaji'])->name('gaji.slip');
+    Route::get('/gaji/slip-all/{periode_id}', [PenggajianController::class, 'viewAllSlips'])->name('gaji.slip-all');
     Route::get('/gaji/slip-pdf/{periode_id}', [PenggajianController::class, 'downloadSlipPdf'])->name('gaji.slip-pdf');
     Route::get('/gaji/laporan-pdf/{periode_id}', [PenggajianController::class, 'downloadLaporanPdf'])->name('gaji.laporan-pdf');
     Route::get('/api/get-ritase-data', [PenggajianController::class, 'getRitaseData'])->name('api.get-ritase-data');
